@@ -106,7 +106,7 @@ impl Node {
 fn get_files(folder: &Folder, client: &reqwest::Client) -> Vec<File> {
     let mut files: Vec<File> = vec![];
     for n in 1.. {
-        let mut request = client.post(&format!("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key={}&content_type=files&response_format=json&chunk={}",
+        let mut request = client.post(&format!("http://www.mediafire.com/api/1.5/folder/get_content.php?folder_key={}&content_type=files&response_format=json&chunk={}",
                                                folder.folderkey,
                                                n)).send().expect("Failed requesting files");
 //        let json = json!(
@@ -133,7 +133,7 @@ fn get_files(folder: &Folder, client: &reqwest::Client) -> Vec<File> {
 fn get_folders(folder: &Folder, client: &reqwest::Client) -> Vec<Folder> {
     let mut folders: Vec<Folder> = vec![];
     for n in 1.. {
-        let mut request = client.post(&format!("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key={}&content_type=folders&response_format=json&chunk={}",
+        let mut request = client.post(&format!("http://www.mediafire.com/api/1.5/folder/get_content.php?folder_key={}&content_type=folders&response_format=json&chunk={}",
                                                folder.folderkey,
                                                n)).send().expect("Failed requesting folders");
 //        let json = json!(
