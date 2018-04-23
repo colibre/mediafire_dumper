@@ -3,13 +3,16 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+#[macro_use]
 extern crate serde_json;
 extern crate reqwest;
+extern crate url;
 
-use std::collections::BTreeMap;
 use serde_json::Value;
 use std::string::ToString;
 use std::io::Write;
+use url::{Url, ParseError};
+
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 struct Folder {
@@ -33,14 +36,18 @@ struct File {
 }
 
 fn main() {
-//    let mut request = reqwest::get("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key=xczuuk44mz3hv&response_format=json").unwrap();
-//    let v: Value = serde_json::from_str(&request.text().unwrap()).unwrap();
+    let argument = std::env::args().next().expect("No argument given");
+    match Url::parse(&argument) {
+        Ok(url) => {
+
+        },
+        Err(err) => {
+
+        }
+    }
     let folder_tree = Node::new(Folder::new("Denpa", "xczuuk44mz3hv"));
+    //let folder_tree = Node::new(Folder::new("Denpa", "2kww1wa95c61d")); //temporarily hardcoded ecks dee
     folder_tree.print(0).expect("IO Error occured");
-    //let folders: Vec<Folder> = serde_json::from_value(v["response"]["folder_content"]["folders"].clone()).unwrap();
-    //let serialized = serde_json::to_string_pretty(&folders).unwrap();
-    //println!("{}", serialized);
-    //println!("Hello, world!");
 }
 
 struct Node {
@@ -71,7 +78,7 @@ impl Node {
     fn print(self, pad: u16) -> Result<(), std::io::Error> {
         let mut stdout = std::io::BufWriter::new(std::io::stdout());
         for _n in 0..pad { stdout.write("== ".as_bytes())?; }
-        stdout.write(format!("{}:\t {}", self.folder.folderkey, self.folder.name).as_bytes())?;
+        stdout.write(format!("{}:\t {}", self.folder.name, self.folder.folderkey).as_bytes())?;
         stdout.write(&[b'\n'])?;
         if !self.nodes.is_empty() {
             for node in self.nodes {
@@ -86,9 +93,11 @@ impl Node {
         }
         Ok(())
     }
+    #[allow(dead_code)]
     fn add_node(mut self, node: Node) {
         self.nodes.push(node);
     }
+    #[allow(dead_code)]
     fn add_file(mut self, file: File) {
         self.files.push(file);
     }
@@ -97,13 +106,24 @@ impl Node {
 fn get_files(folder: &Folder, client: &reqwest::Client) -> Vec<File> {
     let mut files: Vec<File> = vec![];
     for n in 1.. {
-        let mut request = client.get(&format!("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key={}&content_type=files&response_format=json&chunk={}",
+        let mut request = client.post(&format!("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key={}&content_type=files&response_format=json&chunk={}",
                                                folder.folderkey,
                                                n)).send().expect("Failed requesting files");
-        
-        let v: Value = serde_json::from_str(&request.text().unwrap()).unwrap_or_default();
+//        let json = json!(
+//            {
+//                "folder_key": folder.folderkey,
+//                "chunk": n,
+//                "content_type": "files",
+//                "response_format": "json",
+//                "details": "no",
+//            }
+//        );
+//        let mut request = client.post("http://www.mediafire.com/api/1.1/folder/get_content.php")
+//                                .json(&json)
+//                                .send().expect("Failed requesting files");
+        let v: Value = serde_json::from_str(&request.text().unwrap()).expect("Failed parsing the string");
 
-        let temp: Vec<File> = serde_json::from_value(v["response"]["folder_content"]["files"].clone()).unwrap();
+        let temp: Vec<File> = serde_json::from_value(v["response"]["folder_content"]["files"].clone()).expect("Failed parsing");
         if temp.is_empty() { break; }
         files = files.into_iter().chain(temp.into_iter()).collect();
     }
@@ -112,11 +132,23 @@ fn get_files(folder: &Folder, client: &reqwest::Client) -> Vec<File> {
 
 fn get_folders(folder: &Folder, client: &reqwest::Client) -> Vec<Folder> {
     let mut folders: Vec<Folder> = vec![];
-    for n in 1.. { // requests in chunks, see link or API documentation
-        let mut request = client.get(&format!("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key={}&content_type=folders&response_format=json&chunk={}",
+    for n in 1.. {
+        let mut request = client.post(&format!("http://www.mediafire.com/api/1.1/folder/get_content.php?folder_key={}&content_type=folders&response_format=json&chunk={}",
                                                folder.folderkey,
                                                n)).send().expect("Failed requesting folders");
-        let v: Value = serde_json::from_str(&request.text().unwrap()).unwrap_or_default();
+//        let json = json!(
+//            {
+//                "folder_key": folder.folderkey,
+//                "chunk": n,
+//                "content_type": "folders",
+//                "response_format": "json",
+//                "details": "no",
+//            }
+//        );
+//        let mut request = client.post("http://www.mediafire.com/api/1.1/folder/get_content.php")
+//                                .json(&json)
+//                                .send().expect("Failed requesting files");
+        let v: Value = serde_json::from_str(&request.text().expect("Failed request")).unwrap_or_default();
 
         let temp: Vec<Folder> = serde_json::from_value(v["response"]["folder_content"]["folders"].clone()).unwrap_or_default();
         if temp.is_empty() { break; }
@@ -124,8 +156,3 @@ fn get_folders(folder: &Folder, client: &reqwest::Client) -> Vec<Folder> {
     }
     folders
 }
-
-// Folder
-// |     \
-// FolderFolder
-// etc.
