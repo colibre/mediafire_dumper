@@ -9,7 +9,6 @@ extern crate reqwest;
 extern crate url;
 
 use serde_json::Value;
-use std::string::ToString;
 use std::io::Write;
 use url::{Url, ParseError};
 
@@ -20,10 +19,10 @@ struct Folder {
     name: String,
 }
 impl Folder {
-    fn new<T: AsRef<str> + ToString>(name: T, folderkey: T) -> Folder {
+    fn new<T: Into<String>>(name: T, folderkey: T) -> Folder {
         Folder {
-            name: name.to_string(),
-            folderkey: folderkey.to_string(),
+            name: name.into(),
+            folderkey: folderkey.into(),
         }
     }
 }
@@ -36,18 +35,49 @@ struct File {
 }
 
 fn main() {
-    let argument = std::env::args().next().expect("No argument given");
-    match Url::parse(&argument) {
-        Ok(url) => {
+    let argument = std::env::args().skip(1).next().expect("No argument given");
+    let client = reqwest::Client::new();
 
+    match Url::parse(&argument) { // TODO: Properly return errors and nodes to the result
+        Ok(url) => {
+            if let Some(folder_key) = url.fragment() {
+                let mut request = client.post(&format!("http://www.mediafire.com/api/1.5/folder/get_info.php?folder_key={}&response_format=json",
+                                                       folder_key
+                                                       )).send().expect("Failed requesting folder");
+                
+                let v: Value = serde_json::from_str(&request.text().unwrap()).unwrap_or_default();
+                let name = v["response"]["folder_info"]["name"].as_str().unwrap();
+                let folder_tree = Node::new(Folder::new(name, folder_key));
+                folder_tree.print(0);
+            } else {
+                //it's a link without the fragment, call the API to get the folder_key then continue if possible
+            }
         },
         Err(err) => {
+            let argument = argument.trim_left_matches('#');
+            let folder_key = if argument.is_alphanumeric() { Some(argument) } else { None };
+            match folder_key {
+                Some(folder_key) => {
+                    let mut request = client.post(&format!("http://www.mediafire.com/api/1.5/folder/get_info.php?folder_key={}&response_format=json",
+                                                           folder_key
+                                                           )).send().expect("Failed requesting folder");
+                    let v: Value = serde_json::from_str(&request.text().unwrap()).unwrap_or_default();
+                    if v["response"]["result"].as_str() == Some("Success") {
+                        let name = v["response"]["folder_info"]["name"].as_str().unwrap();
+                        let folder_tree = Node::new(Folder::new(name, folder_key));
+                        folder_tree.print(0);
+                    } else {
+                    }
 
+                },
+                None => {
+                }
+            }
         }
     }
-    let folder_tree = Node::new(Folder::new("Denpa", "xczuuk44mz3hv"));
+    //let folder_tree = Node::new(Folder::new("Denpa", "xczuuk44mz3hv"));
     //let folder_tree = Node::new(Folder::new("Denpa", "2kww1wa95c61d")); //temporarily hardcoded ecks dee
-    folder_tree.print(0).expect("IO Error occured");
+    //folder_tree.print(0).expect("IO Error occured");
 }
 
 struct Node {
