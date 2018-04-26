@@ -13,8 +13,7 @@ mod api;
 
 use serde_json::Value;
 use std::io::Write;
-use url::{Url, ParseError};
-
+use url::{ParseError, Url};
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 struct Folder {
@@ -41,13 +40,11 @@ fn main() {
     let argument = std::env::args().skip(1).next().expect("No argument given");
     let client = reqwest::Client::new();
 
-    match Url::parse(&argument) { // TODO: Properly return errors and nodes to the result
+    match Url::parse(&argument) {
+        // TODO: Properly return errors and nodes to the result
         Ok(url) => {
             if let Some(folder_key) = url.fragment() {
-                let params = [
-                    ("response_format", "json"),
-                    ("folder_key", &folder_key),
-                ];
+                let params = [("response_format", "json"), ("folder_key", &folder_key)];
                 let v = api::folder::get_info(Some(&client), &params).unwrap();
 
                 let name = v["response"]["folder_info"]["name"].as_str().unwrap();
@@ -56,16 +53,17 @@ fn main() {
             } else {
                 //it's a link without the fragment, call the API to get the folder_key then continue if possible
             }
-        },
+        }
         Err(err) => {
             let argument = argument.trim_left_matches('#');
-            let folder_key = if argument.is_alphanumeric() { Some(argument) } else { None };
+            let folder_key = if argument.is_alphanumeric() {
+                Some(argument)
+            } else {
+                None
+            };
             match folder_key {
                 Some(folder_key) => {
-                    let params = [
-                        ("response_format", "json"),
-                        ("folder_key", &folder_key),
-                    ];
+                    let params = [("response_format", "json"), ("folder_key", &folder_key)];
                     let v = api::folder::get_info(Some(&client), &params).unwrap();
 
                     if v["response"]["result"].as_str() == Some("Success") {
@@ -75,10 +73,8 @@ fn main() {
                     } else {
                         eprintln!("Incorrect folder key");
                     }
-
-                },
-                None => {
                 }
+                None => {}
             }
         }
     }
@@ -114,16 +110,20 @@ impl Node {
 
     fn print(self, pad: u16) -> Result<(), std::io::Error> {
         let mut stdout = std::io::BufWriter::new(std::io::stdout());
-        for _n in 0..pad { stdout.write("== ".as_bytes())?; }
+        for _n in 0..pad {
+            stdout.write("== ".as_bytes())?;
+        }
         stdout.write(format!("{}:\t {}", self.folder.name, self.folder.folderkey).as_bytes())?;
         stdout.write(&[b'\n'])?;
         if !self.nodes.is_empty() {
             for node in self.nodes {
-                node.print(pad+1)?;
+                node.print(pad + 1)?;
             }
         }
         for file in self.files {
-            for _n in 0..pad { stdout.write("== ".as_bytes())?; }
+            for _n in 0..pad {
+                stdout.write("== ".as_bytes())?;
+            }
             stdout.write("=> ".as_bytes())?;
             stdout.write(file.name.as_bytes())?;
             stdout.write(&[b'\n'])?;
@@ -151,8 +151,12 @@ fn get_files(folder: &Folder, client: &reqwest::Client) -> Vec<File> {
         ];
         let v = api::folder::get_content(Some(client), &params).unwrap();
 
-        let temp: Vec<File> = serde_json::from_value(v["response"]["folder_content"]["files"].clone()).expect("Failed parsing");
-        if temp.is_empty() { break; }
+        let temp: Vec<File> = serde_json::from_value(
+            v["response"]["folder_content"]["files"].clone(),
+        ).expect("Failed parsing");
+        if temp.is_empty() {
+            break;
+        }
         files = files.into_iter().chain(temp.into_iter()).collect();
     }
     files
@@ -161,7 +165,6 @@ fn get_files(folder: &Folder, client: &reqwest::Client) -> Vec<File> {
 fn get_folders(folder: &Folder, client: &reqwest::Client) -> Vec<Folder> {
     let mut folders: Vec<Folder> = vec![];
     for n in 1.. {
-
         let params = [
             ("content_type", "folders"),
             ("response_format", "json"),
@@ -170,8 +173,12 @@ fn get_folders(folder: &Folder, client: &reqwest::Client) -> Vec<Folder> {
         ];
         let v = api::folder::get_content(Some(client), &params).unwrap();
 
-        let temp: Vec<Folder> = serde_json::from_value(v["response"]["folder_content"]["folders"].clone()).unwrap_or_default();
-        if temp.is_empty() { break; }
+        let temp: Vec<Folder> = serde_json::from_value(
+            v["response"]["folder_content"]["folders"].clone(),
+        ).unwrap_or_default();
+        if temp.is_empty() {
+            break;
+        }
         folders = folders.into_iter().chain(temp.into_iter()).collect();
     }
     folders

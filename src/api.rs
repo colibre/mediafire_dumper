@@ -1,31 +1,35 @@
-extern crate serde_json;
 extern crate reqwest;
+extern crate serde_json;
 
 macro_rules! gen_api_call {
-    ($category:ident, $endpoint:ident) => (
+    ($category:ident, $endpoint:ident) => {
         pub fn $endpoint(client: Option<&Client>, params: &[(&str, &str)]) -> Option<Value> {
             let reply = if let Some(client) = client {
-                let mut request = client.post(concat!("http://www.mediafire.com/api/1.5/",
-                                                      stringify!($category),
-                                                      "/",
-                                                      stringify!($endpoint),
-                                                      ".php")
-                                             )
-                                        .query(params)
-                                        .send()
-                                        .unwrap();
+                let mut request = client
+                    .post(concat!(
+                        "http://www.mediafire.com/api/1.5/",
+                        stringify!($category),
+                        "/",
+                        stringify!($endpoint),
+                        ".php"
+                    ))
+                    .query(params)
+                    .send()
+                    .unwrap();
                 request.text()
             } else {
                 let client = Client::new();
-                let mut request = client.post(concat!("http://www.mediafire.com/api/1.5/",
-                                                      stringify!($category),
-                                                      "/",
-                                                      stringify!($endpoint),
-                                                      ".php")
-                                             )
-                                        .query(params)
-                                        .send()
-                                        .unwrap();
+                let mut request = client
+                    .post(concat!(
+                        "http://www.mediafire.com/api/1.5/",
+                        stringify!($category),
+                        "/",
+                        stringify!($endpoint),
+                        ".php"
+                    ))
+                    .query(params)
+                    .send()
+                    .unwrap();
                 request.text()
             };
             let v: Result<Value, _> = ::serde_json::from_str(&reply.unwrap_or_default());
@@ -35,7 +39,7 @@ macro_rules! gen_api_call {
                 None
             }
         }
-    )
+    };
 }
 
 pub mod folder {
