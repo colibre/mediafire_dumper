@@ -8,6 +8,8 @@ extern crate serde_json;
 extern crate reqwest;
 extern crate url;
 
+mod api;
+
 use serde_json::Value;
 use std::io::Write;
 use url::{Url, ParseError};
